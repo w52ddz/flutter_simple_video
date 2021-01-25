@@ -44,7 +44,7 @@ class VideoListController {
   }
 
   /// 捕捉滑动，实现翻页
-  void setPageContrller(PageController pageController) {
+  void setPageController(PageController pageController) {
     // 保存
     this.pageController = pageController;
     pageController.addListener(pageEventListener);
@@ -125,7 +125,7 @@ class VideoListController {
     Function refreshUI, // 刷新主页面
   }) async {
     // 绑定controller事件
-    setPageContrller(pageController);
+    setPageController(pageController);
     // 父级页面刷新方法
     this.refreshUI = refreshUI;
     // 保存父级页面翻页方法
