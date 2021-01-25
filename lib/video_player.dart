@@ -1,16 +1,21 @@
-
 import 'data.dart';
 import 'package:flutter/material.dart';
 import 'package:fijkplayer/fijkplayer.dart';
 
+/* 分支dev-2：同步滑动，由于player同步生成，会出现下面问题：
+  1. 向上或向下翻一页时会先展示暂停按钮
+  2. 翻页超过一页时，player未准备好，会先展示黑屏，之后才能正常展示
+ */
 class VideoListController {
-
-  /// 视频列表
+  /// 视频列表，视频上限为3
   List<FijkPlayer> playerList = [null, null, null];
+
   /// 所在的数据列表的序号
   int sourceIndex = 0;
+
   /// 记录当前pageView的索引
   int pageViewIndex = 0;
+
   /// 获取3个播放器
   FijkPlayer get currentPlayer => playerList[1];
   FijkPlayer get prevPlayer => playerList[0];
@@ -20,14 +25,17 @@ class VideoListController {
 
   /// 获取指定index的player
   FijkPlayer playerOfIndex(int index) => playerList[index];
+
   /// 视频总数目
   int get videoCount => playerList.length;
+
   /// 数据列表
   List<UserVideo> sourceList = [];
 
   PageController pageController;
   // 保存父级的索引跟新方法
   Function changeToNextPage;
+  Function refreshUI; // 刷新ui界面
 
   // 更新页面索引
   void changePageViewIndex(target) {
@@ -45,20 +53,30 @@ class VideoListController {
   /// 设置播放器
   FijkPlayer setPlayer(String videoUrl, [int targetIndex]) {
     FijkPlayer player;
+    bool autoPlay = targetIndex != null;
     player = FijkPlayer()
       ..setDataSource(
         videoUrl,
         // 传递视频索引时默认需要播放视频
-        autoPlay: targetIndex != null,
+        autoPlay: autoPlay,
         showCover: true,
       )
       ..setLoop(0);
     return player;
   }
 
+  // 异步设置播放器资源，并播放
+  Future<void> asynclySetPlayer(FijkPlayer player, String videoUrl) async {
+    await player.setDataSource(
+      videoUrl,
+      autoPlay: true,
+      showCover: true,
+    );
+    await player.setLoop(0);
+  }
+
   /// 异步设置播放器
-  Future<FijkPlayer> setPlayerAsync(String videoUrl,
-      [int targetIndex]) async {
+  Future<FijkPlayer> setPlayerAsync(String videoUrl, [int targetIndex]) async {
     FijkPlayer player = FijkPlayer();
     await player.setDataSource(
       videoUrl,
@@ -108,13 +126,15 @@ class VideoListController {
   }) async {
     // 绑定controller事件
     setPageContrller(pageController);
+    // 父级页面刷新方法
+    this.refreshUI = refreshUI;
     // 保存父级页面翻页方法
     this.changeToNextPage = changeToNextPage;
     // 初始化视频
     await initVideo(initialList, videoIndex);
   }
 
-  /// 监听事件
+  /// 页面滑动监听事件
   void pageEventListener() async {
     double p = pageController.page;
     // 当前视频完全划走就暂停
@@ -126,50 +146,52 @@ class VideoListController {
       currentPlayer?.pause();
     }
     if (p % 1 == 0) {
+      // 目标页
       int target = p ~/ 1;
       print('sourceIndex索引：$sourceIndex');
       print('目标索引：$target');
       // 未成功翻页
       if (sourceIndex == target) return;
-      // 是否需要更新播放资源索引，如果在页面在更新前就已经翻页置为false
-      // bool pageChangeRequired = true;
+      // 是否需要更新父级播放资源索引，如果在页面在更新前就已经翻页置为false
+      bool pageChangeRequired = true;
+      // 用户保存将要播放视频的播放器
       FijkPlayer player;
-      // 先更新索引，防止在未执行视频索引更新时就翻页
-      changePageViewIndex(target);
+      // 先更新索引
+      pageViewIndex = target;
       // 前翻
       if (target < sourceIndex) {
-        if (sourceIndex - target == 1) { // 翻一页
+        if (sourceIndex - target == 1) {
+          // 翻一页
           // 销毁最后一个播放器
           playerList[2]?.release();
           playerList[2] = null;
-          // 播放当前视频
-          player = playerList[0];
-          player.start();
           // 如果目标索引不为length - 1
-          if (target == 0) {
-            playerList.insert(0, null);
-          } else {
-            playerList.insert(0, setPlayer(sourceList[target - 1].url));
-          }
+          playerList.insert(
+              0, target == 0 ? null : setPlayer(sourceList[target - 1].url));
           // 移除最后一项
           playerList.removeLast();
-        } else if (sourceIndex - target == 2) { // 翻两页
+          // 播放当前视频
+          player = playerList[1];
+          await player.start();
+        } else if (sourceIndex - target == 2) {
+          // 翻两页
           // 前两个播放器
           playerList[2]?.release();
           playerList[2] = null;
           playerList[1]?.release();
           playerList[1] = null;
-          playerList.removeLast();
-          playerList.removeLast();
-          player = setPlayer(sourceList[target].url, target);
-          playerList.insert(0, player);
+          // 删除后两个
+          playerList.removeRange(1, 3);
+          // 向前填充
+          playerList.insertAll(0, [null, null]);
           // 如果目标索引不为length - 1
-          if (target == 0) {
-            playerList.insert(0, null);
-          } else {
-            playerList.insert(0, setPlayer(sourceList[target - 1].url));
+          if (target != 0) {
+            playerList[0] = setPlayer(sourceList[target - 1].url);
           }
-        } else { // 前翻超两页
+          player = playerList[1] = FijkPlayer();
+          await asynclySetPlayer(player, sourceList[target].url);
+        } else {
+          // 前翻超两页
           // 全部销毁
           playerList.forEach((FijkPlayer fijkPlayer) {
             fijkPlayer?.release();
@@ -180,16 +202,16 @@ class VideoListController {
           if (target != 0) {
             playerList[0] = setPlayer(sourceList[target - 1].url);
           }
-          player = playerList[1] = setPlayer(sourceList[target].url, target);
+          player = playerList[1] = FijkPlayer();
+          await asynclySetPlayer(player, sourceList[target].url);
         }
-      } else { // 后翻
-        if (target - sourceIndex == 1) { // 只滑动一页的情况
+      } else {
+        // 后翻
+        if (target - sourceIndex == 1) {
+          // 只滑动一页的情况
           // 销毁第一个播放器
           playerList[0]?.release();
           playerList[0] = null;
-          // 播放当前视频
-          player = playerList[2];
-          player.start();
           // 如果目标索引不为length - 1
           if (target == sourceList.length - 1) {
             playerList.add(null);
@@ -198,22 +220,28 @@ class VideoListController {
           }
           // 移除第一项
           playerList.removeAt(0);
-        } else if (target - sourceIndex == 2) { // 翻两页
+          // 播放当前视频
+          player = playerList[1];
+          await player.start();
+        } else if (target - sourceIndex == 2) {
+          // 翻两页
           // 前两个播放器
           playerList[0]?.release();
           playerList[0] = null;
           playerList[1]?.release();
           playerList[1] = null;
+          // 删除前两个播放器
           playerList.removeRange(0, 2);
-          player = setPlayer(sourceList[target].url, target);
-          playerList.add(player);
+          // 向后填充
+          playerList.addAll([null, null]);
           // 如果目标索引不为length - 1
-          if (target == sourceList.length - 1) {
-            playerList.add(null);
-          } else {
-            playerList.add(setPlayer(sourceList[target + 1].url));
+          if (target != sourceList.length - 1) {
+            playerList[2] = setPlayer(sourceList[target + 1].url);
           }
-        } else { // 后翻超两页
+          player = playerList[1] = FijkPlayer();
+          await asynclySetPlayer(player, sourceList[target].url);
+        } else {
+          // 后翻超两页
           // 全部销毁
           playerList.forEach((FijkPlayer fijkPlayer) {
             fijkPlayer?.release();
@@ -224,11 +252,27 @@ class VideoListController {
           if (target != sourceList.length - 1) {
             playerList[2] = setPlayer(sourceList[target + 1].url);
           }
-          player = playerList[1] = setPlayer(sourceList[target].url, target);
+          player = playerList[1] = FijkPlayer();
+          await asynclySetPlayer(player, sourceList[target].url);
         }
       }
-      // 更新索引
-      sourceIndex = target;
+      print('是否需要更-------------------新索引$pageChangeRequired');
+      // 如果视频准备好播放时已经划走
+      if (pageViewIndex != target) {
+        print(
+            '有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有');
+        player?.pause();
+        if ((pageViewIndex - target).abs() > 1) {
+          player?.dispose();
+        }
+        pageChangeRequired = false;
+      }
+      if (pageChangeRequired) {
+        // 更新索引
+        sourceIndex = target;
+        // 同步更新父级索引
+        changePageViewIndex(target);
+      }
     }
   }
 

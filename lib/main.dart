@@ -48,7 +48,7 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   PageController _pageController = PageController();
   int currentPageIndex = 0;
@@ -56,10 +56,15 @@ class _HomePageState extends State<HomePage> {
   VideoListController videoListController;
 
   // 滑动视频切换页面索引
-  changeToNextPage(index) {
+  void changeToNextPage(index) {
     setState(() {
       currentPageIndex = index;
     });
+  }
+
+  void refreshUI() {
+    if (mounted)
+      setState(() {});
   }
 
   void initVideoListController() async {
@@ -69,6 +74,7 @@ class _HomePageState extends State<HomePage> {
       pageController: _pageController,
       initialList: list,
       changeToNextPage: changeToNextPage,
+      refreshUI: refreshUI,
     );
     setState(() {});
   }
@@ -87,6 +93,13 @@ class _HomePageState extends State<HomePage> {
       UserVideo(image: '', url: mV4, desc: 'MV_TEST_4'),
     ];
     initVideoListController();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (state != AppLifecycleState.resumed) {
+      videoListController.currentPlayer.pause();
+    }
   }
 
   @override
@@ -123,27 +136,93 @@ class _HomePageState extends State<HomePage> {
                 showPauseIcon = i == currentPageIndex
                   && player.state == FijkState.paused;
               }
-              return Stack(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    child: player == null
-                      ? Center(
-                        child: Text('占位图片'),
-                      )
-                      : FijkView(
-                        fit: FijkFit.fitHeight,
-                        player: player,
-                        color: Colors.black,
-                        panelBuilder: (_, __, ___, ____, _____) => Container(),
-                      ),
-                  )
-                ],
+              return GestureDetector(
+                onTap: () async {
+                  if (player == null) return;
+                  FijkState fijkState = player.state;
+                  if (fijkState == FijkState.started) {
+                    await player.pause();
+                  } else if (fijkState == FijkState.paused) {
+                    await player.start();
+                  }
+                  setState(() {});
+                },
+                child: Stack(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      child: player == null
+                        ? Center(
+                          child: Text('占位图片'),
+                        )
+                        : FijkView(
+                          fit: FijkFit.fitHeight,
+                          player: player,
+                          color: Colors.black,
+                          panelBuilder: (_, __, ___, ____, _____) => Container(),
+                        ),
+                    ),
+                    // 暂停
+                    showPauseIcon
+                      ? AnimatedPause()
+                      : Container(),
+                  ],
+                ),
               );
             },
           ),
         )
       );
+  }
+
+}
+
+class AnimatedPause extends StatefulWidget {
+  @override
+  _AnimatedPauseState createState() => _AnimatedPauseState();
+}
+
+class _AnimatedPauseState extends State<AnimatedPause> with TickerProviderStateMixin  {
+
+  AnimationController animationController;
+  Animation animation;
+
+  @override
+  void initState() {
+    super.initState();
+    animationController = AnimationController(duration: Duration(milliseconds: 150), vsync: this);
+    animation = TweenSequence([
+      TweenSequenceItem(
+        tween: Tween(begin: 2.0, end: 1.0).chain(
+          CurveTween(curve: Curves.easeInOut)
+        ),
+        weight: 50
+      ),
+    ]).animate(animationController)
+    ..addListener(() {
+      this.setState(() {});
+    });
+    animationController.forward();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: double.infinity,
+      width: double.infinity,
+      alignment: Alignment.center,
+      child: Transform.scale(
+        scale: double.parse('${animation.value}'),
+        child: Opacity(
+          opacity: double.parse('${1 - (animation.value - 1)}'),
+          child: Image.asset(
+            'images/video_pause_icon.png',
+            width: 48.52,
+            height: 60,
+          ),
+        ),
+      ),
+    );
   }
 }
