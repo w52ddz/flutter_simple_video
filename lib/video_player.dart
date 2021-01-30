@@ -72,7 +72,8 @@ class VideoListController {
       autoPlay: true,
       showCover: true,
     );
-    await player.setLoop(0);
+    // setLoop方法使用await会在ios出现bug
+    /* await  */player.setLoop(0);
   }
 
   /// 异步设置播放器
@@ -83,7 +84,8 @@ class VideoListController {
       autoPlay: true,
       showCover: true,
     );
-    await player.setLoop(0);
+    // setLoop方法使用await会在ios出现bug
+    /* await */ player.setLoop(0);
     /* bool canPlay = true;
     // 此时该视频已划走
     if (targetIndex != null && targetIndex != pageViewIndex) {
@@ -259,8 +261,6 @@ class VideoListController {
       print('是否需要更-------------------新索引$pageChangeRequired');
       // 如果视频准备好播放时已经划走
       if (pageViewIndex != target) {
-        print(
-            '有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有');
         player?.pause();
         if ((pageViewIndex - target).abs() > 1) {
           player?.dispose();
