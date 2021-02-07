@@ -2,10 +2,6 @@ import 'data.dart';
 import 'package:flutter/material.dart';
 import 'package:fijkplayer/fijkplayer.dart';
 
-/* 分支dev-2：同步滑动，由于player同步生成，会出现下面问题：
-  1. 向上或向下翻一页时会先展示暂停按钮
-  2. 翻页超过一页时，player未准备好，会先展示黑屏，之后才能正常展示
- */
 class VideoListController {
   /// 视频列表，视频上限为3
   List<FijkPlayer> playerList = [null, null, null];
@@ -72,7 +68,8 @@ class VideoListController {
       autoPlay: true,
       showCover: true,
     );
-    await player.setLoop(0);
+    // setLoop方法使用await会在ios出现bug
+    /* await  */ player.setLoop(0);
   }
 
   /// 异步设置播放器
@@ -83,16 +80,8 @@ class VideoListController {
       autoPlay: true,
       showCover: true,
     );
-    await player.setLoop(0);
-    /* bool canPlay = true;
-    // 此时该视频已划走
-    if (targetIndex != null && targetIndex != pageViewIndex) {
-      canPlay = false;
-    }
-    // 视频页未被销毁前，app在前台才执行播放操作
-    if (canPlay/*  && AppLifecycleState.resumed == Global.appLifecycleState */) {
-      // await player.start();
-    } */
+    // setLoop方法使用await会在ios出现bug
+    /* await */ player.setLoop(0);
     return player;
   }
 
@@ -259,8 +248,6 @@ class VideoListController {
       print('是否需要更-------------------新索引$pageChangeRequired');
       // 如果视频准备好播放时已经划走
       if (pageViewIndex != target) {
-        print(
-            '有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有有没有');
         player?.pause();
         if ((pageViewIndex - target).abs() > 1) {
           player?.dispose();
