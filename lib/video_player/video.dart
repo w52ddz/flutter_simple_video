@@ -70,67 +70,77 @@ class _VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: Container(
-      child: PageView.builder(
-        controller: _pageController,
-        pageSnapping: true,
-        physics: ClampingScrollPhysics(),
-        scrollDirection: Axis.vertical,
-        itemCount: list.length,
-        itemBuilder: (context, i) {
-          // UserVideo data = list[i];
-          // 索引对应的播放器
-          FijkPlayer player;
-          if (i == currentPageIndex) {
-            player = videoListController.currentPlayer;
-          } else if (currentPageIndex - 1 >= 0 && i == currentPageIndex - 1) {
-            player = videoListController.prevPlayer;
-          } else if (currentPageIndex - 1 <= list.length &&
-              i == currentPageIndex + 1) {
-            player = videoListController.nextPlayer;
-          }
-          // 是否显示暂停按钮- 当前视频状态不为paused且索引不为当前索引
-          bool showPauseIcon = false;
-          if (player != null) {
-            showPauseIcon =
-                i == currentPageIndex && player.state == FijkState.paused;
-          }
-          return GestureDetector(
-            onTap: () async {
-              if (player == null) return;
-              FijkState fijkState = player.state;
-              if (fijkState == FijkState.started) {
-                await player.pause();
-              } else if (fijkState == FijkState.paused) {
-                await player.start();
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            pageSnapping: true,
+            physics: ClampingScrollPhysics(),
+            scrollDirection: Axis.vertical,
+            itemCount: list.length,
+            itemBuilder: (context, i) {
+              // UserVideo data = list[i];
+              // 索引对应的播放器
+              FijkPlayer player;
+              if (i == currentPageIndex) {
+                player = videoListController.currentPlayer;
+              } else if (currentPageIndex - 1 >= 0 &&
+                  i == currentPageIndex - 1) {
+                player = videoListController.prevPlayer;
+              } else if (currentPageIndex - 1 <= list.length &&
+                  i == currentPageIndex + 1) {
+                player = videoListController.nextPlayer;
               }
-              setState(() {});
-            },
-            child: Stack(
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  child: player == null
-                      ? Center(
-                          child: Text('占位图片'),
-                        )
-                      : FijkView(
-                          fit: FijkFit.fitHeight,
-                          player: player,
-                          color: Colors.black,
-                          panelBuilder: (_, __, ___, ____, _____) =>
-                              Container(),
-                        ),
+              // 是否显示暂停按钮- 当前视频状态不为paused且索引不为当前索引
+              bool showPauseIcon = false;
+              if (player != null) {
+                showPauseIcon =
+                    i == currentPageIndex && player.state == FijkState.paused;
+              }
+              return GestureDetector(
+                onTap: () async {
+                  if (player == null) return;
+                  FijkState fijkState = player.state;
+                  if (fijkState == FijkState.started) {
+                    await player.pause();
+                  } else if (fijkState == FijkState.paused) {
+                    await player.start();
+                  }
+                  setState(() {});
+                },
+                child: Stack(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      child: player == null
+                          ? Center(
+                              child: Text('占位图片'),
+                            )
+                          : FijkView(
+                              fit: FijkFit.fitHeight,
+                              player: player,
+                              color: Colors.black,
+                              panelBuilder: (_, __, ___, ____, _____) =>
+                                  Container(),
+                            ),
+                    ),
+                    // 暂停
+                    showPauseIcon ? AnimatedPause() : Container(),
+                  ],
                 ),
-                // 暂停
-                showPauseIcon ? AnimatedPause() : Container(),
-              ],
-            ),
-          );
-        },
+              );
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.arrow_back_ios),
+            iconSize: 50,
+            color: Colors.red,
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
       ),
-    ));
+    );
   }
 }
 

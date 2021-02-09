@@ -212,6 +212,7 @@ class VideoListController {
           // 播放当前视频
           player = playerList[1];
           await player.start();
+          print('后翻一页后当前的播放器状态---------${player.state}');
         } else if (target - sourceIndex == 2) {
           // 翻两页
           // 前两个播放器
@@ -245,7 +246,6 @@ class VideoListController {
           await asynclySetPlayer(player, sourceList[target].url);
         }
       }
-      print('是否需要更-------------------新索引$pageChangeRequired');
       // 如果视频准备好播放时已经划走
       if (pageViewIndex != target) {
         player?.pause();
