@@ -245,7 +245,6 @@ class VideoListController {
           await asynclySetPlayer(player, sourceList[target].url);
         }
       }
-      print('是否需要更-------------------新索引$pageChangeRequired');
       // 如果视频准备好播放时已经划走
       if (pageViewIndex != target) {
         player?.pause();
