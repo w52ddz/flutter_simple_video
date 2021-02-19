@@ -126,7 +126,7 @@ class _VideoPageState extends State<VideoPage> with WidgetsBindingObserver {
                             ),
                     ),
                     // 暂停
-                    showPauseIcon ? AnimatedPause() : Container(),
+                    // showPauseIcon ? AnimatedPause() : Container(),
                   ],
                 ),
               );
